@@ -21,11 +21,11 @@ millisecond = 1.0
 second :: Time
 second = 1000.0
 
-foreign import everyP :: forall c. (c -> Signal c) -> Time -> Signal Time
+foreign import everyP :: forall c. (c -> Signal c) -> Time -> Effect (Signal Time)
 
 -- |Creates a signal which yields the current time (according to `now`) every
 -- |given number of milliseconds.
-every :: Time -> Signal Time
+every :: Time -> Effect (Signal Time)
 every = everyP constant
 
 -- |Returns the number of milliseconds since an arbitrary, but constant, time
@@ -54,8 +54,10 @@ since = sinceP constant
 -- |period reset the delay.
 debounce :: forall a. Time -> Signal a -> Signal a
 debounce t s =
-  let leading = whenChangeTo false $ since t s
-  in sampleOn leading s
+  let
+    leading = whenChangeTo false $ since t s
+  in
+    sampleOn leading s
   where
-    whenEqual value input = filter ((==) value) value input
-    whenChangeTo value input = whenEqual value $ dropRepeats input
+  whenEqual value input = filter ((==) value) value input
+  whenChangeTo value input = whenEqual value $ dropRepeats input

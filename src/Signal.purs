@@ -1,36 +1,39 @@
 module Signal
-  ( Signal()
+  ( (<~)
+  , (~)
+  , (~>)
+  , Signal(..)
   , constant
-  , merge
-  , mergeMany
-  , foldp
-  , sampleOn
   , dropRepeats
   , dropRepeats'
-  , runSignal
-  , unwrap
-  , get
   , filter
   , filterMap
   , flatten
   , flattenArray
-  , (<~)
-  , (~>)
-  , (~)
-  , squigglyMap
-  , squigglyApply
   , flippedMap
+  , foldp
+  , get
   , map2
   , map3
   , map4
   , map5
+  , merge
+  , mergeMany
+  , runSignal
+  , sampleOn
+  , squigglyApply
+  , squigglyMap
+  , unsafeMerge
+  , unsafeMergeMany
+  , unwrap
   ) where
 
 import Prelude
 
-import Effect (Effect())
 import Data.Foldable (fold, foldl, class Foldable)
 import Data.Maybe (Maybe(..), fromMaybe, isJust)
+import Effect (Effect)
+import Effect.Unsafe (unsafePerformEffect)
 
 foreign import data Signal :: Type -> Type
 
@@ -43,16 +46,27 @@ foreign import applySig :: forall a b. Signal (a -> b) -> Signal a -> Signal b
 -- |Merge two signals, returning a new signal which will yield a value
 -- |whenever either of the input signals yield. Its initial value will be
 -- |that of the first signal.
-foreign import merge :: forall a. (Signal a) -> (Signal a) -> (Signal a)
+foreign import merge :: forall a. Signal a -> Signal a -> Effect (Signal a)
+
+unsafeMerge :: forall a. Signal a -> Signal a -> Signal a
+unsafeMerge sig1 sig2 = unsafePerformEffect $ merge sig1 sig2
 
 -- |Merge all signals inside a `Foldable`, returning a `Maybe` which will
 -- |either contain the resulting signal, or `Nothing` if the `Foldable`
 -- |was empty.
-mergeMany :: forall f a. Functor f => Foldable f => f (Signal a) -> Maybe (Signal a)
-mergeMany sigs = foldl mergeMaybe Nothing (Just <$> sigs)
-  where mergeMaybe a Nothing = a
-        mergeMaybe Nothing a = a
-        mergeMaybe (Just a) (Just b) = Just (merge a b)
+mergeMany :: forall f a. Foldable f => f (Signal a) -> Effect (Maybe (Signal a))
+mergeMany sigs = foldl f (pure Nothing) sigs
+  where
+  f acc sig = do
+    acc' <- acc
+    case acc' of
+      Nothing -> pure $ Just sig
+      Just acc'' -> Just <$> merge sig acc''
+
+unsafeMergeMany :: forall f a. Functor f => Foldable f => f (Signal a) -> Maybe (Signal a)
+unsafeMergeMany sigs = foldl f Nothing sigs
+  where
+  f acc sig = Just $ fromMaybe sig $ unsafeMerge sig <$> acc
 
 -- |Creates a past dependent signal. The function argument takes the value of
 -- |the input signal, and the previous value of the output signal, to produce
@@ -85,10 +99,10 @@ foreign import runSignal :: Signal (Effect Unit) -> Effect Unit
 -- |Takes a signal of effects of `a`, and produces an effect which returns a
 -- |signal which will take each effect produced by the input signal, run it,
 -- |and yield its returned value.
-foreign import unwrap :: forall a . Signal (Effect a) -> Effect (Signal a)
+foreign import unwrap :: forall a. Signal (Effect a) -> Effect (Signal a)
 
 -- |Gets the current value of the signal.
-foreign import get :: forall a . Signal a -> Effect a
+foreign import get :: forall a. Signal a -> Effect a
 
 -- |Takes a signal and filters out yielded values for which the provided
 -- |predicate function returns `false`.
@@ -108,7 +122,7 @@ foreign import flattenArray :: forall a. Signal (Array a) -> a -> Signal a
 -- |Turns a signal of collections of items into a signal of each item inside
 -- |each collection, in order.
 flatten :: forall a f. Functor f => Foldable f => Signal (f a) -> a -> Signal a
-flatten sig = flattenArray (sig ~> map (\i -> [i]) >>> fold)
+flatten sig = flattenArray (sig ~> map (\i -> [ i ]) >>> fold)
 
 instance functorSignal :: Functor Signal where
   map = mapSig
@@ -119,8 +133,8 @@ instance applySignal :: Apply Signal where
 instance applicativeSignal :: Applicative Signal where
   pure = constant
 
-instance semigroupSignal :: Semigroup (Signal a) where
-  append = merge
+instance semigroupSignal :: Monoid a => Semigroup (Signal a) where
+  append = map2 append
 
 instance monoidSignal :: Monoid a => Monoid (Signal a) where
   mempty = constant mempty

@@ -1,74 +1,76 @@
 // module Signal.Time
 
-export function now () {
-  var perf = typeof performance !== 'undefined' ? performance : null,
-    proc = typeof process !== 'undefined' ? process : null
+export function now() {
+  var perf = typeof performance !== "undefined" ? performance : null,
+    proc = typeof process !== "undefined" ? process : null;
   return (
     (perf &&
       (perf.now || perf.webkitNow || perf.msNow || perf.oNow || perf.mozNow)) ||
     (proc &&
       proc.hrtime &&
       function () {
-        var t = proc.hrtime()
-        return (t[0] * 1e9 + t[1]) / 1e6
+        var t = proc.hrtime();
+        return (t[0] * 1e9 + t[1]) / 1e6;
       }) ||
     Date.now
-  ).call(perf)
+  ).call(perf);
 }
 
-export function everyP (constant) {
-  return function (t) {
-    var out = constant(now())
-    setInterval(function () {
-      out.set(now())
-    }, t)
-    return out
-  }
+export function everyP() {
+  return function (constant) {
+    return function (t) {
+      var out = constant(now());
+      setInterval(function () {
+        out.set(now());
+      }, t);
+      return out;
+    };
+  };
 }
 
-export function delayP (constant) {
+export function delayP(constant) {
   return function (t) {
     return function (sig) {
-      var out = constant(sig.get())
-      var first = true
+      var out = constant(sig.get());
+      var first = true;
       sig.subscribe(function (val) {
         if (first) {
-          first = false
+          first = false;
         } else {
           setTimeout(function () {
-            out.set(val)
-          }, t)
+            out.set(val);
+          }, t);
         }
-      })
-      return out
-    }
-  }
+      });
+      return out;
+    };
+  };
 }
 
-export function sinceP (constant) {
+export function sinceP(constant) {
   return function (t) {
     return function (sig) {
-      var out = constant(false)
-      var first = true
-      var timer = undefined
+      var out = constant(false);
+      var first = true;
+      var timer = undefined;
       var tick = function () {
-        out.set(false)
-        timer = undefined
-      }
+        out.set(false);
+        timer = undefined;
+      };
       sig.subscribe(function () {
         if (first) {
-          first = false
-          return
+          first = false;
+          return;
         }
         if (timer === undefined) {
-          out.set(true)
-          timer = setTimeout(tick, t)
+          out.set(true);
+          timer = setTimeout(tick, t);
         } else {
-          clearTimeout(timer)
-          timer = setTimeout(tick, t)
+          clearTimeout(timer);
+          timer = setTimeout(tick, t);
         }
-      })
-      return out
-    }
-  }
+      });
+      return out;
+    };
+  };
 }

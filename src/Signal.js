@@ -1,169 +1,171 @@
 // module Signal
 
-function make (initial) {
-  var subs = []
-  var val = initial
+function make(initial) {
+  var subs = [];
+  var val = initial;
   var sig = {
     subscribe: function (sub) {
-      subs.push(sub)
-      sub(val)
+      subs.push(sub);
+      sub(val);
     },
     get: function () {
-      return val
+      return val;
     },
     set: function (newval) {
-      val = newval
+      val = newval;
       subs.forEach(function (sub) {
-        sub(newval)
-      })
-    }
-  }
-  return sig
+        sub(newval);
+      });
+    },
+  };
+  return sig;
 }
 
-export const constant = make
+export const constant = make;
 
-export function mapSig (fun) {
+export function mapSig(fun) {
   return function (sig) {
-    var out = make(fun(sig.get()))
+    var out = make(fun(sig.get()));
     sig.subscribe(function (val) {
-      out.set(fun(val))
-    })
-    return out
-  }
+      out.set(fun(val));
+    });
+    return out;
+  };
 }
 
-export function applySig (fun) {
+export function applySig(fun) {
   return function (sig) {
-    var out = make(fun.get()(sig.get()))
+    var out = make(fun.get()(sig.get()));
     var produce = function () {
-      out.set(fun.get()(sig.get()))
-    }
-    fun.subscribe(produce)
-    sig.subscribe(produce)
-    return out
-  }
+      out.set(fun.get()(sig.get()));
+    };
+    fun.subscribe(produce);
+    sig.subscribe(produce);
+    return out;
+  };
 }
 
-export function merge (sig1) {
-  return function (sig2) {
-    var out = make(sig1.get())
-    sig2.subscribe(out.set)
-    sig1.subscribe(out.set)
-    return out
-  }
+export function merge() {
+  return function (sig1) {
+    return function (sig2) {
+      var out = make(sig1.get());
+      sig2.subscribe(out.set);
+      sig1.subscribe(out.set);
+      return out;
+    };
+  };
 }
 
-export function foldp (fun) {
+export function foldp(fun) {
   return function (seed) {
     return function (sig) {
-      var acc = seed
-      var out = make(acc)
+      var acc = seed;
+      var out = make(acc);
       sig.subscribe(function (val) {
-        acc = fun(val)(acc)
-        out.set(acc)
-      })
-      return out
-    }
-  }
+        acc = fun(val)(acc);
+        out.set(acc);
+      });
+      return out;
+    };
+  };
 }
 
-export function sampleOn (sig1) {
+export function sampleOn(sig1) {
   return function (sig2) {
-    var out = make(sig2.get())
+    var out = make(sig2.get());
     sig1.subscribe(function () {
-      out.set(sig2.get())
-    })
-    return out
-  }
+      out.set(sig2.get());
+    });
+    return out;
+  };
 }
 
-export function dropRepeatsImpl (eq) {
+export function dropRepeatsImpl(eq) {
   return function (sig) {
-    var val = sig.get()
-    var out = make(val)
+    var val = sig.get();
+    var out = make(val);
     sig.subscribe(function (newval) {
-      var areEqual = eq(val)(newval)
+      var areEqual = eq(val)(newval);
       if (!areEqual) {
-        val = newval
-        out.set(val)
+        val = newval;
+        out.set(val);
       }
-    })
-    return out
-  }
+    });
+    return out;
+  };
 }
 
-export function dropRepeatsByStrictInequality (sig) {
-  var val = sig.get()
-  var out = make(val)
+export function dropRepeatsByStrictInequality(sig) {
+  var val = sig.get();
+  var out = make(val);
   sig.subscribe(function (newval) {
     if (val !== newval) {
-      val = newval
-      out.set(val)
+      val = newval;
+      out.set(val);
     }
-  })
-  return out
+  });
+  return out;
 }
 
-export function runSignal (sig) {
+export function runSignal(sig) {
   return function () {
     sig.subscribe(function (val) {
-      val()
-    })
-    return {}
-  }
+      val();
+    });
+    return {};
+  };
 }
 
-export function unwrap (sig) {
+export function unwrap(sig) {
   return function () {
-    var out = make(sig.get()())
+    var out = make(sig.get()());
     sig.subscribe(function (val) {
-      out.set(val())
-    })
-    return out
-  }
+      out.set(val());
+    });
+    return out;
+  };
 }
 
-export function filter (fn) {
+export function filter(fn) {
   return function (seed) {
     return function (sig) {
-      var out = make(fn(sig.get()) ? sig.get() : seed)
+      var out = make(fn(sig.get()) ? sig.get() : seed);
       sig.subscribe(function (val) {
-        if (fn(val)) out.set(val)
-      })
-      return out
-    }
-  }
+        if (fn(val)) out.set(val);
+      });
+      return out;
+    };
+  };
 }
 
-export function flattenArray (sig) {
+export function flattenArray(sig) {
   return function (seed) {
-    var first = sig.get().slice()
+    var first = sig.get().slice();
     if (first.length > 0) {
-      seed = first[0]
+      seed = first[0];
     } else {
-      first = null
+      first = null;
     }
-    var out = make(seed)
+    var out = make(seed);
     var feed = function (items) {
-      items.forEach(out.set)
-    }
+      items.forEach(out.set);
+    };
     setTimeout(function () {
       sig.subscribe(function (val) {
         if (first === null) {
-          feed(val)
+          feed(val);
         } else {
-          feed(first.slice(1))
-          first = null
+          feed(first.slice(1));
+          first = null;
         }
-      })
-    }, 0)
-    return out
-  }
+      });
+    }, 0);
+    return out;
+  };
 }
 
-export function get (sig) {
+export function get(sig) {
   return function () {
-    return sig.get()
-  }
+    return sig.get();
+  };
 }
